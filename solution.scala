@@ -64,10 +64,48 @@ val rdd = file.
 	}).
 	reduceByKey((a, b) => a + b).
 	cartesian(sc.parallelize(days)).
-	filter(a => a._1._1.split("/")(0).toInt < a._2 && a._1._1.split("/")(0).toInt > (a._2 - 7)).
+	filter(a => a._1._1.split("/")(0).toInt <= a._2 && a._1._1.split("/")(0).toInt > (a._2 - 7)).
 	map(a => ((a._2 - 7) + "-" + (a._2), a._1._2)).
 	reduceByKey((a, b) => a + b).
 	sortBy(a => a._1.split("-")(0).toInt)
 rdd.
 	collect().
 	foreach(pair => println(pair._1 + ":\t" + pair._2))
+
+=== OR ===
+
+import org.apache.spark.sql.types.{StructType, StructField, StringType, IntegerType, DateType};
+import java.text.SimpleDateFormat
+import org.apache.spark.sql.Row
+val oldFormat = new SimpleDateFormat("dd/MMM/yyyy")
+val newFormat = new SimpleDateFormat("yyyy-MM-dd")
+val timestampFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S")
+def dfSchema(columnNames: List[String]): StructType =
+	StructType(
+		Seq(
+			StructField(name = "date", dataType = StringType, nullable = false),
+			StructField(name = "count", dataType = IntegerType, nullable = false)
+		)
+	)
+val schema = dfSchema(List("date", "count"))
+val rdd = file.
+	filter(line => line match {
+		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == 4)
+		case _ => false
+	}).
+	map(line => line match {
+		case myLogRegex(host, client_id, user_id, date, time, method, request, code, size) => (newFormat.format(oldFormat.parse(date)), 1)
+		case _ => ("01/Jan/1960", 1)
+	}).
+	reduceByKey((a, b) => a + b).
+	map(pair => Row(pair._1, pair._2))
+	sortBy(a => a._1.split("-")(0).toInt)
+val df = spark.
+	createDataFrame(rdd, schema).
+	withColumn("date", col("date").cast("date")).
+	groupBy(window($"date", "1 week", "1 day")).
+	agg(sum("count")).
+	orderBy("window")
+df.
+	collect().
+	foreach(row => println(row(0) + ":\t" + row(1)))
