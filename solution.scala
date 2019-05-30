@@ -94,12 +94,10 @@ val rdd = file.
 		case _ => false
 	}).
 	map(line => line match {
-		case myLogRegex(host, client_id, user_id, date, time, method, request, code, size) => (newFormat.format(oldFormat.parse(date)), 1)
-		case _ => ("01/Jan/1960", 1)
-	}).
-	reduceByKey((a, b) => a + b).
-	map(pair => Row(pair._1, pair._2))
-	sortBy(a => a._1.split("-")(0).toInt)
+		case myLogRegex(host, client_id, user_id, date, time, method, request, code, size) => 
+			Row(newFormat.format(oldFormat.parse(date)), 1)
+		case _ => Row("01/Jan/1960", 1)
+	})
 val df = spark.
 	createDataFrame(rdd, schema).
 	withColumn("date", col("date").cast("date")).
