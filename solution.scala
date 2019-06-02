@@ -43,7 +43,8 @@ val rdd = file.
 		case _ => (("01/Jan/1960", "UNKNOWN", -1), 1)
 	}).
 	reduceByKey((a, b) => a + b).
-	sortBy(a => a._1._1)
+	sortBy(a => a._1._1).
+	filter(a => a._2 > 10)
 rdd.
 	collect().
 	foreach(pair => println(pair._1 + ": " + pair._2))
