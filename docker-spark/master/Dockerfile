@@ -1,4 +1,4 @@
-FROM base:custom
+FROM spark-base:custom:custom
 
 COPY master.sh /
 
