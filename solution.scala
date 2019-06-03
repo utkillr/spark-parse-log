@@ -51,7 +51,7 @@ val myLogRegex = raw"""^(\S+) (\S+) (\S+) \[([\w/]+):([\w:]+\s[+\-]\d{4})\] "(\S
 val days = (8 to 31).toArray
 val rdd = file.
 	filter(line => line match {
-		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == 4)
+		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == '4')
 		case _ => false
 	}).
 	map(line => line match {
@@ -76,6 +76,8 @@ rdd.
 import org.apache.spark.sql.types.{StructType, StructField, StringType, IntegerType, DateType};
 import java.text.SimpleDateFormat
 import org.apache.spark.sql.Row
+val logRegex = raw"""^(\S+) (\S+) (\S+) \[([\w:/]+\s[+\-]\d{4})\] "(.+)" (\d{3}) (\S+)""".r
+val myLogRegex = raw"""^(\S+) (\S+) (\S+) \[([\w/]+):([\w:]+\s[+\-]\d{4})\] "(\S+) (.*)" (\d{3}) (\S+)""".r
 val oldFormat = new SimpleDateFormat("dd/MMM/yyyy")
 val newFormat = new SimpleDateFormat("yyyy-MM-dd")
 def dfSchema(columnNames: List[String]): StructType =
@@ -88,7 +90,7 @@ def dfSchema(columnNames: List[String]): StructType =
 val schema = dfSchema(List("date", "count"))
 val rdd = file.
 	filter(line => line match {
-		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == 4)
+		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == '4')
 		case _ => false
 	}).
 	map(line => line match {
