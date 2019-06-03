@@ -46,17 +46,16 @@ rdd.
 TASK 3
 Произвести расчет скользящим окном в одну неделю количества запросов закончившихся с кодами 4xx и 5xx
 */
-val logRegex = raw"""^(\S+) (\S+) (\S+) \[([\w:/]+\s[+\-]\d{4})\] "(.+)" (\d{3}) (\S+)""".r
-val myLogRegex = raw"""^(\S+) (\S+) (\S+) \[([\w/]+):([\w:]+\s[+\-]\d{4})\] "(\S+) (.*)" (\d{3}) (\S+)""".r
+val myLogRegex = raw"""^(\S+) (\S+) (\S+) \[([\w/]+):([\w:]+\s[+\-]\d{4})\] "(.*)" (\d{3}) (\S+)""".r
 val days = (8 to 31).toArray
 val rdd = file.
 	filter(line => line match {
-		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == '4')
+		case myLogRegex(host, client_id, user_id, date, time, request, code, size) => (code(0) == '5' || code(0) == '4')
 		case _ => false
 	}).
 	map(line => line match {
-		case myLogRegex(host, client_id, user_id, date, time, method, request, code, size) => (date, 1)
-		case _ => ("01/Jan/1960", 1)
+		// Only this case due to filter
+		case myLogRegex(host, client_id, user_id, date, time, request, code, size) => (date, 1)
 	}).
 	reduceByKey((a, b) => a + b).
 	// Cartesian with RDD [8, 9, ..., 31]
@@ -76,8 +75,7 @@ rdd.
 import org.apache.spark.sql.types.{StructType, StructField, StringType, IntegerType, DateType};
 import java.text.SimpleDateFormat
 import org.apache.spark.sql.Row
-val logRegex = raw"""^(\S+) (\S+) (\S+) \[([\w:/]+\s[+\-]\d{4})\] "(.+)" (\d{3}) (\S+)""".r
-val myLogRegex = raw"""^(\S+) (\S+) (\S+) \[([\w/]+):([\w:]+\s[+\-]\d{4})\] "(\S+) (.*)" (\d{3}) (\S+)""".r
+val myLogRegex = raw"""^(\S+) (\S+) (\S+) \[([\w/]+):([\w:]+\s[+\-]\d{4})\] "(.*)" (\d{3}) (\S+)""".r
 val oldFormat = new SimpleDateFormat("dd/MMM/yyyy")
 val newFormat = new SimpleDateFormat("yyyy-MM-dd")
 def dfSchema(columnNames: List[String]): StructType =
@@ -90,13 +88,13 @@ def dfSchema(columnNames: List[String]): StructType =
 val schema = dfSchema(List("date", "count"))
 val rdd = file.
 	filter(line => line match {
-		case logRegex(host, client_id, user_id, datetime, request, code, size) => (code(0) == '5' || code(0) == '4')
+		case myLogRegex(host, client_id, user_id, date, time, request, code, size) => (code(0) == '5' || code(0) == '4')
 		case _ => false
 	}).
 	map(line => line match {
-		case myLogRegex(host, client_id, user_id, date, time, method, request, code, size) => 
+		// Only this case due to filter
+		case myLogRegex(host, client_id, user_id, date, time, request, code, size) => 
 			Row(newFormat.format(oldFormat.parse(date)), 1)
-		case _ => Row("1960-01-01", 1)
 	})
 val df = spark.
 	createDataFrame(rdd, schema).
